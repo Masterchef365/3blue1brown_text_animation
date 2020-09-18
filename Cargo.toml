@@ -8,3 +8,5 @@ edition = "2018"
 owned_ttf_parser = "0.8.0"
 harfbuzz_rs = "1.2.0"
 anyhow = "1"
+wgpu_launchpad = { path = "../wgpu_launchpad" }
+euclid = "0.22"

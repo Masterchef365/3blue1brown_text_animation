@@ -1,31 +1,63 @@
 use anyhow::{Context, Result};
-use owned_ttf_parser::{self as ttf, OutlineBuilder, GlyphId};
-use harfbuzz_rs::{self as hb, Face as HbFace, UnicodeBuffer};
+use harfbuzz_rs::{self as hb, UnicodeBuffer};
+use owned_ttf_parser::{self as ttf, GlyphId, OutlineBuilder};
+mod lines;
+use lines::Lines;
 
-struct Outliner;
+pub type Point = [f32; 2];
+pub type Color = [f32; 3];
+pub type Line = (Point, Point, Color);
+
+struct Outliner {
+    color: Color,
+    lines: Vec<Line>,
+    last: Option<Point>,
+    first: Option<Point>,
+}
+
+impl Outliner {
+    pub fn new(color: [f32; 3]) -> Self {
+        Self {
+            color,
+            lines: Vec::new(),
+            first: None,
+            last: None,
+        }
+    }
+
+    fn last(&self) -> Point {
+        self.last.expect("No initial MoveTo!")
+    }
+
+    pub fn lines(self) -> Vec<Line> {
+        self.lines
+    }
+}
 
 impl OutlineBuilder for Outliner {
     fn move_to(&mut self, x: f32, y: f32) {
-        println!("move_to (x: {}, y: {})", x, y);
+        self.last = Some([x, y]);
+        self.first = Some([x, y]);
     }
 
     fn line_to(&mut self, x: f32, y: f32) {
-        println!("line_to (x: {}, y: {})", x, y);
+        self.lines.push((self.last(), [x, y], self.color));
     }
 
-    fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
-        println!("quad_to (x1: {}, y1: {} x: {}, y: {})", x1, y1, x, y);
+    fn quad_to(&mut self, _x1: f32, _y1: f32, x: f32, y: f32) {
+        self.lines.push((self.last(), [x, y], self.color));
     }
 
-    fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
-        println!(
-            "curve_to (x2: {}, y2: {}, x1: {}, y1: {} x: {}, y: {})",
-            x2, y2, x1, y1, x, y
-        );
+    fn curve_to(&mut self, _x1: f32, _y1: f32, _x2: f32, _y2: f32, x: f32, y: f32) {
+        self.lines.push((self.last(), [x, y], self.color));
     }
 
     fn close(&mut self) {
-        println!("close()");
+        self.lines.push((
+            self.last(),
+            self.first.expect("No first point!"),
+            self.color,
+        ));
     }
 }
 
@@ -45,11 +77,13 @@ fn main() -> Result<()> {
     let positions = shape.get_glyph_positions();
     let infos = shape.get_glyph_infos();
 
+    let mut outliner = Outliner::new([1.0, 1.0, 1.0]);
     for (position, info) in positions.iter().zip(infos) {
-        let mut outliner = Outliner;
-        let rect = ttf_face.outline_glyph(GlyphId(info.codepoint as u16), &mut outliner);
-        dbg!(rect);
-        dbg!(position);
+        let _rect = ttf_face.outline_glyph(GlyphId(info.codepoint as u16), &mut outliner);
+        // TODO: Use rect to do offsets in lines
     }
+
+    wgpu_launchpad::launch::<Lines>(outliner.lines);
+
     Ok(())
 }
