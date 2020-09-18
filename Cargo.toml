@@ -1,0 +1,9 @@
+[package]
+name = "glyph_fun"
+version = "0.1.0"
+authors = ["Masterchef365 <duncan.freeman1@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+owned_ttf_parser = "0.8.0"
+anyhow = "1"
