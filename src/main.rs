@@ -41,23 +41,29 @@ impl OutlineBuilder for Outliner {
     }
 
     fn line_to(&mut self, x: f32, y: f32) {
-        self.lines.push((self.last(), [x, y], self.color));
+        let pt = [x, y];
+        self.lines.push((self.last(), pt, self.color));
+        self.last = Some(pt);
     }
 
     fn quad_to(&mut self, _x1: f32, _y1: f32, x: f32, y: f32) {
-        self.lines.push((self.last(), [x, y], self.color));
+        let pt = [x, y];
+        self.lines.push((self.last(), pt, self.color));
+        self.last = Some(pt);
     }
 
     fn curve_to(&mut self, _x1: f32, _y1: f32, _x2: f32, _y2: f32, x: f32, y: f32) {
-        self.lines.push((self.last(), [x, y], self.color));
+        let pt = [x, y];
+        self.lines.push((self.last(), pt, self.color));
+        self.last = Some(pt);
     }
 
     fn close(&mut self) {
-        self.lines.push((
+        /*self.lines.push((
             self.last(),
             self.first.expect("No first point!"),
             self.color,
-        ));
+        ));*/
     }
 }
 
@@ -83,7 +89,7 @@ fn main() -> Result<()> {
         // TODO: Use rect to do offsets in lines
     }
 
-    wgpu_launchpad::launch::<Lines>(outliner.lines);
+    wgpu_launchpad::launch::<Lines>(outliner.lines());
 
     Ok(())
 }
