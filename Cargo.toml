@@ -6,4 +6,5 @@ edition = "2018"
 
 [dependencies]
 owned_ttf_parser = "0.8.0"
+harfbuzz_rs = "1.2.0"
 anyhow = "1"

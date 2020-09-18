@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
-use owned_ttf_parser::{Face, OutlineBuilder};
-
-//TODO: Use harfbuzz to figure out texture locations
+use owned_ttf_parser::{self as ttf, OutlineBuilder, GlyphId};
+use harfbuzz_rs::{self as hb, Face as HbFace, UnicodeBuffer};
 
 struct Outliner;
 
@@ -34,15 +33,23 @@ fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
     let ttf_path = args.next().context("Requires TTF path")?;
     let text = args.next().context("Requires text")?;
+    let font_index = 0;
+
     let ttf_data = std::fs::read(ttf_path).context("Failed to read TTF")?;
-    let face = Face::from_slice(&ttf_data, 0).context("Failed to parse TTF")?;
-    for character in text.chars() {
+    let ttf_face = ttf::Face::from_slice(&ttf_data, font_index).context("Failed to parse TTF")?;
+
+    let unicode = UnicodeBuffer::new().add_str(&text);
+    let hb_face = hb::Face::new(&ttf_data, font_index);
+    let hb_font = hb::Font::new(hb_face);
+    let shape = hb::shape(&hb_font, unicode, &[]);
+    let positions = shape.get_glyph_positions();
+    let infos = shape.get_glyph_infos();
+
+    for (position, info) in positions.iter().zip(infos) {
         let mut outliner = Outliner;
-        let glyph_id = face
-            .glyph_index(character)
-            .context("No glyph for this character")?;
-        let rect = face.outline_glyph(glyph_id, &mut outliner);
+        let rect = ttf_face.outline_glyph(GlyphId(info.codepoint as u16), &mut outliner);
         dbg!(rect);
+        dbg!(position);
     }
     Ok(())
 }

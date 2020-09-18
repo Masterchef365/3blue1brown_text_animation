@@ -7,12 +7,140 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b602bfe940d21c130f3895acd65221e8a61270debe89d628b9cb4e3ccb8569b"
 
 [[package]]
+name = "bitflags"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
+
+[[package]]
+name = "cc"
+version = "1.0.60"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef611cc68ff783f18535d77ddd080185275713d852c4f5cbb6122c462a7a825c"
+
+[[package]]
+name = "cmake"
+version = "0.1.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e56268c17a6248366d66d4a47a3381369d068cce8409bb1716ed77ea32163bb"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "core-foundation"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57d24c7a13c43e870e37c1556b74555437870a04514f7685f5b354e090567171"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
+]
+
+[[package]]
+name = "core-foundation-sys"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3a71ab494c0b5b860bdc8407ae08978052417070c2ced38573a9157ad75b8ac"
+
+[[package]]
+name = "core-graphics"
+version = "0.19.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3889374e6ea6ab25dba90bb5d96202f61108058361f6dc72e8b03e6f8bbe923"
+dependencies = [
+ "bitflags",
+ "core-foundation",
+ "foreign-types",
+ "libc",
+]
+
+[[package]]
+name = "core-text"
+version = "15.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "131b3fd1f8bd5db9f2b398fa4fdb6008c64afc04d447c306ac2c7e98fba2a61d"
+dependencies = [
+ "core-foundation",
+ "core-graphics",
+ "foreign-types",
+ "libc",
+]
+
+[[package]]
+name = "foreign-types"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6f339eb8adc052cd2ca78910fda869aefa38d22d5cb648e6485e4d3fc06f3b1"
+dependencies = [
+ "foreign-types-shared",
+]
+
+[[package]]
+name = "foreign-types-shared"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
+
+[[package]]
+name = "freetype"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b73222ab32d9ad65fe0e1c3258da8d614fd47cf19fce92b09eb520060c5c5ad5"
+dependencies = [
+ "freetype-sys",
+ "libc",
+]
+
+[[package]]
+name = "freetype-sys"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d48ac0ce366dd47a115ec8e598d7c51b4a974fc52ded5e53a56b31f55f34f3ea"
+dependencies = [
+ "cmake",
+ "libc",
+ "pkg-config",
+]
+
+[[package]]
 name = "glyph_fun"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "harfbuzz_rs",
  "owned_ttf_parser",
 ]
+
+[[package]]
+name = "harfbuzz-sys"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "845f3e65ec4e30b0b1b6e1c055900871f3776d3492cc76744e3fc5943a6129a9"
+dependencies = [
+ "cc",
+ "core-graphics",
+ "core-text",
+ "foreign-types",
+ "freetype",
+ "pkg-config",
+]
+
+[[package]]
+name = "harfbuzz_rs"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5bba81dd6b356135f0b31c42447e49d45116adc2e02910070947a322c423aa5"
+dependencies = [
+ "bitflags",
+ "harfbuzz-sys",
+]
+
+[[package]]
+name = "libc"
+version = "0.2.77"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2f96b10ec2560088a8e76961b00d47107b3a625fecb76dedb29ee7ccbf98235"
 
 [[package]]
 name = "owned_ttf_parser"
@@ -22,6 +150,12 @@ checksum = "fb477c7fd2a3a6e04e1dc6ca2e4e9b04f2df702021dc5a5d1cf078c587dc59f7"
 dependencies = [
  "ttf-parser",
 ]
+
+[[package]]
+name = "pkg-config"
+version = "0.3.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d36492546b6af1463394d46f0c834346f31548646f6ba10849802c9c9a27ac33"
 
 [[package]]
 name = "ttf-parser"
