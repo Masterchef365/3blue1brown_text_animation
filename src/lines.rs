@@ -1,17 +1,15 @@
 use wgpu_launchpad::{Scene, wgpu};
 use wgpu::util::DeviceExt;
 use bytemuck::{Pod, Zeroable};
-use crate::Line;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct Vertex {
-    pos: [f32; 2],
-    color: [f32; 3],
+pub struct Vertex {
+    pub pos: [f32; 2],
+    pub color: [f32; 3],
 }
 unsafe impl Zeroable for Vertex {}
 unsafe impl Pod for Vertex {}
-
 
 pub struct Lines {
     pipeline: wgpu::RenderPipeline,
@@ -19,30 +17,10 @@ pub struct Lines {
     n_verts: u32,
 }
 
-fn lines_to_vertices(lines: &[Line]) -> Vec<Vertex> {
-    let mut vertices = Vec::with_capacity(2 * lines.len());
-    for (a, b, color) in lines.iter().copied() {
-        let downscale = 5000.0;
-        let a = [a[0] / downscale, a[1] / downscale]; 
-        let b = [b[0] / downscale, b[1] / downscale]; 
-        vertices.push(Vertex {
-            pos: a,
-            color,
-        });
-        vertices.push(Vertex {
-            pos: b,
-            color,
-        });
-    }
-    vertices
-}
-
 impl Scene for Lines {
-    type Args = Vec<Line>;
+    type Args = Vec<Vertex>;
 
-    fn new(device: &wgpu::Device, lines: Self::Args) -> Lines {
-        let vertex_data = lines_to_vertices(&lines);
-
+    fn new(device: &wgpu::Device, vertex_data: Self::Args) -> Lines {
         // Create buffers
         let vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),

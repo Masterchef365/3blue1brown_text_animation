@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use harfbuzz_rs::{self as hb, UnicodeBuffer};
 use owned_ttf_parser::{self as ttf, GlyphId, OutlineBuilder};
 mod lines;
-use lines::Lines;
+use lines::{Lines as LinesRender, Vertex};
 
 pub type Point = [f32; 2];
 pub type Color = [f32; 3];
@@ -83,13 +83,30 @@ fn main() -> Result<()> {
     let positions = shape.get_glyph_positions();
     let infos = shape.get_glyph_infos();
 
-    let mut outliner = Outliner::new([1.0, 1.0, 1.0]);
+        let downscale = 5000.0;
+    let mut vertices = Vec::new();
+    let mut x_position = -0.8;
     for (position, info) in positions.iter().zip(infos) {
+        let mut outliner = Outliner::new([1.0, 1.0, 1.0]);
         let _rect = ttf_face.outline_glyph(GlyphId(info.codepoint as u16), &mut outliner);
-        // TODO: Use rect to do offsets in lines
+
+        for (a, b, color) in outliner.lines.iter().copied() {
+            let a = [a[0] / downscale + x_position, a[1] / downscale]; 
+            let b = [b[0] / downscale + x_position, b[1] / downscale]; 
+            vertices.push(Vertex {
+                pos: a,
+                color,
+            });
+            vertices.push(Vertex {
+                pos: b,
+                color,
+            });
+        }
+
+        x_position += position.x_advance as f32 / downscale;
     }
 
-    wgpu_launchpad::launch::<Lines>(outliner.lines());
+    wgpu_launchpad::launch::<LinesRender>(vertices);
 
     Ok(())
 }
