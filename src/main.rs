@@ -65,6 +65,22 @@ impl FillVertexConstructor<Vertex> for FillVertexCtor {
     }
 }
 
+struct StrokeVertexCtor {
+    offset: Point,
+    scaling: f32,
+}
+
+impl StrokeVertexConstructor<Vertex> for StrokeVertexCtor {
+    fn new_vertex(&mut self, position: Point, _: StrokeAttributes) -> Vertex {
+        let Point { x, y, .. } = position + self.offset.to_vector();
+        Vertex {
+            pos: [x * self.scaling, y * self.scaling],
+            value: 0.0,
+        }
+    }
+}
+
+
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
     let ttf_path = args.next().context("Requires TTF path")?;
@@ -83,21 +99,37 @@ fn main() -> Result<()> {
 
     let mut fill_buf: VertexBuffers<Vertex, u16> = VertexBuffers::new();
     let mut fill_tess = FillTessellator::new();
+    let mut stroke_buf: VertexBuffers<Vertex, u16> = VertexBuffers::new();
+    let mut stroke_tess = StrokeTessellator::new();
 
+    const SCALE: f32 = 0.1;
     let mut x_position = 0.0;
     for (position, info) in positions.iter().zip(infos) {
-        let ctor = FillVertexCtor {
-            offset: point(x_position, 0.0),
-            scaling: 0.1,
-        };
-        let mut builder = BuffersBuilder::new(&mut fill_buf, ctor);
         let mut outliner = PathTranslator::new();
         let _rect = ttf_face.outline_glyph(GlyphId(info.codepoint as u16), &mut outliner);
         let path = outliner.finish();
 
+        // Fill
+        let ctor = FillVertexCtor {
+            offset: point(x_position, 0.0),
+            scaling: SCALE,
+        };
+        let mut builder = BuffersBuilder::new(&mut fill_buf, ctor);
         fill_tess.tessellate(
             &path,
             &FillOptions::tolerance(5.),
+            &mut builder,
+        ).unwrap();
+
+        // Stroke
+        let ctor = StrokeVertexCtor {
+            offset: point(x_position, 0.0),
+            scaling: SCALE,
+        };
+        let mut builder = BuffersBuilder::new(&mut stroke_buf, ctor);
+        stroke_tess.tessellate(
+            &path,
+            &StrokeOptions::tolerance(5.).with_line_width(25.),
             &mut builder,
         ).unwrap();
 
@@ -105,10 +137,10 @@ fn main() -> Result<()> {
     }
 
     let args = Args {
-        fill_vertices: fill_buf.vertices,
-        fill_indices: fill_buf.indices,
-        stroke_vertices: vec![],
-        stroke_indices: vec![],
+        fill_vertices: vec![],
+        fill_indices: vec![],
+        stroke_vertices: stroke_buf.vertices,
+        stroke_indices: stroke_buf.indices,
     };
 
     wgpu_launchpad::launch::<Renderer>(args);
