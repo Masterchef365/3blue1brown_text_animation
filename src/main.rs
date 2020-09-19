@@ -2,10 +2,12 @@ use anyhow::{Context, Result};
 use harfbuzz_rs::{self as hb, UnicodeBuffer};
 use owned_ttf_parser::{self as ttf, GlyphId, OutlineBuilder};
 mod lines;
-use lines::{Lines as LinesRender, Vertex, Args};
-use lyon::path::{Path, Builder as PathBuilder};
+use lines::{Args, Lines as LinesRender, Vertex};
+use lyon::lyon_tessellation::{
+    BasicVertexConstructor, BuffersBuilder, FillOptions, VertexBuffers, FillVertexConstructor, FillTessellator, FillAttributes,
+};
 use lyon::math::{point, Point};
-use lyon::lyon_tessellation::{BasicVertexConstructor, VertexBuffers, BuffersBuilder, basic_shapes, FillOptions};
+use lyon::path::{Builder as PathBuilder, Path};
 
 struct PathTranslator {
     path: PathBuilder,
@@ -14,10 +16,10 @@ struct PathTranslator {
 impl PathTranslator {
     pub fn new() -> Self {
         Self {
-            path: PathBuilder::new()
+            path: PathBuilder::new(),
         }
     }
-    
+
     pub fn finish(self) -> Path {
         self.path.build()
     }
@@ -37,7 +39,8 @@ impl OutlineBuilder for PathTranslator {
     }
 
     fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
-        self.path.cubic_bezier_to(point(x1, y1), point(x2, y2), point(x, y));
+        self.path
+            .cubic_bezier_to(point(x1, y1), point(x2, y2), point(x, y));
     }
 
     fn close(&mut self) {
@@ -45,13 +48,18 @@ impl OutlineBuilder for PathTranslator {
     }
 }
 
-struct WithColor([f32; 3]);
+struct VertexCtor {
+    color: [f32; 3],
+    offset: Point,
+}
 
-impl BasicVertexConstructor<Vertex> for WithColor {
-    fn new_vertex(&mut self, position: Point) -> Vertex {
+const DOWNSCALE: f32 = 5000.0;
+impl FillVertexConstructor<Vertex> for VertexCtor {
+    fn new_vertex(&mut self, position: Point, _: FillAttributes) -> Vertex {
+        let Point { x, y, .. } = position + self.offset.to_vector();
         Vertex {
-            pos: [position.x, position.y],
-            color: self.0,
+            pos: [x / DOWNSCALE, y / DOWNSCALE],
+            color: self.color,
         }
     }
 }
@@ -73,28 +81,27 @@ fn main() -> Result<()> {
     let infos = shape.get_glyph_infos();
 
     let mut vertex_buffers: VertexBuffers<Vertex, u16> = VertexBuffers::new();
+    let mut tessellator = FillTessellator::new();
 
-    basic_shapes::fill_circle(
-        point(0.0, 0.0),
-        0.5,
-        &FillOptions::tolerance(0.001),
-        &mut BuffersBuilder::new(
-            &mut vertex_buffers,
-            WithColor([0.0, 1.0, 0.0])
-        ),
-    ).unwrap();
-
-    /*
-    let downscale = 5000.0;
-    let mut vertices = Vec::new();
-    let mut x_position = -0.8;
-    for (_position, info) in positions.iter().zip(infos) {
+    let mut x_position = -4800.0;
+    for (position, info) in positions.iter().zip(infos) {
+        let ctor = VertexCtor {
+            color: [1.0; 3],
+            offset: point(x_position, 0.0),
+        };
+        let mut builder = BuffersBuilder::new(&mut vertex_buffers, ctor);
         let mut outliner = PathTranslator::new();
         let _rect = ttf_face.outline_glyph(GlyphId(info.codepoint as u16), &mut outliner);
-        dbg!(outliner.finish());
-        x_position += position.x_advance as f32 / downscale;
+        let path = outliner.finish();
+
+        tessellator.tessellate(
+            &path,
+            &FillOptions::tolerance(0.005),
+            &mut builder,
+        ).unwrap();
+
+        x_position += position.x_advance as f32;
     }
-    */
 
     let args = Args {
         triangle_vertices: vertex_buffers.vertices,
