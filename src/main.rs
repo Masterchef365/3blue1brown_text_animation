@@ -68,14 +68,16 @@ impl FillVertexConstructor<Vertex> for FillVertexCtor {
 struct StrokeVertexCtor {
     offset: Point,
     scaling: f32,
+    value: f32,
 }
 
 impl StrokeVertexConstructor<Vertex> for StrokeVertexCtor {
     fn new_vertex(&mut self, position: Point, _: StrokeAttributes) -> Vertex {
         let Point { x, y, .. } = position + self.offset.to_vector();
+        self.value += 1.0;
         Vertex {
             pos: [x * self.scaling, y * self.scaling],
-            value: 0.0,
+            value: self.value,
         }
     }
 }
@@ -125,6 +127,7 @@ fn main() -> Result<()> {
         let ctor = StrokeVertexCtor {
             offset: point(x_position, 0.0),
             scaling: SCALE,
+            value: 0.0,
         };
         let mut builder = BuffersBuilder::new(&mut stroke_buf, ctor);
         stroke_tess.tessellate(
@@ -137,8 +140,8 @@ fn main() -> Result<()> {
     }
 
     let args = Args {
-        fill_vertices: vec![],
-        fill_indices: vec![],
+        fill_vertices: fill_buf.vertices,
+        fill_indices: fill_buf.indices,
         stroke_vertices: stroke_buf.vertices,
         stroke_indices: stroke_buf.indices,
     };
