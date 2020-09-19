@@ -2,14 +2,13 @@ use anyhow::{Context, Result};
 use harfbuzz_rs::{self as hb, UnicodeBuffer};
 use owned_ttf_parser::{self as ttf, GlyphId, OutlineBuilder};
 mod render;
-use render::{Args, Renderer, Vertex};
 use lyon::lyon_tessellation::{
-    BuffersBuilder, VertexBuffers, 
-    FillOptions, FillVertexConstructor, FillTessellator, FillAttributes,
-    StrokeOptions, StrokeVertexConstructor, StrokeTessellator, StrokeAttributes,
+    BuffersBuilder, FillAttributes, FillOptions, FillTessellator, FillVertexConstructor,
+    StrokeAttributes, StrokeOptions, StrokeTessellator, StrokeVertexConstructor, VertexBuffers,
 };
 use lyon::math::{point, Point};
 use lyon::path::{Builder as PathBuilder, Path};
+use render::{Args, Renderer, Vertex};
 
 struct PathTranslator {
     path: PathBuilder,
@@ -82,10 +81,13 @@ impl StrokeVertexConstructor<Vertex> for StrokeVertexCtor {
     }
 }
 
-
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
     let ttf_path = args.next().context("Requires TTF path")?;
+    let scaling = args
+        .next()
+        .context("Requires text")
+        .and_then(|arg| Ok(arg.parse::<f32>()?))?;
     let text = args.next().context("Requires text")?;
     let font_index = 0;
 
@@ -104,37 +106,36 @@ fn main() -> Result<()> {
     let mut stroke_buf: VertexBuffers<Vertex, u16> = VertexBuffers::new();
     let mut stroke_tess = StrokeTessellator::new();
 
-    const SCALE: f32 = 0.1;
     let mut x_position = 0.0;
+    let y_position = 5000.0;
     for (position, info) in positions.iter().zip(infos) {
         let mut outliner = PathTranslator::new();
         let _rect = ttf_face.outline_glyph(GlyphId(info.codepoint as u16), &mut outliner);
         let path = outliner.finish();
 
+        let offset = point(x_position, y_position);
+
         // Fill
-        let ctor = FillVertexCtor {
-            offset: point(x_position, 0.0),
-            scaling: SCALE,
-        };
+        let ctor = FillVertexCtor { offset, scaling };
         let mut builder = BuffersBuilder::new(&mut fill_buf, ctor);
-        fill_tess.tessellate(
-            &path,
-            &FillOptions::tolerance(5.),
-            &mut builder,
-        ).unwrap();
+        fill_tess
+            .tessellate(&path, &FillOptions::tolerance(5.), &mut builder)
+            .unwrap();
 
         // Stroke
         let ctor = StrokeVertexCtor {
-            offset: point(x_position, 0.0),
-            scaling: SCALE,
+            offset,
+            scaling,
             value: 0.0,
         };
         let mut builder = BuffersBuilder::new(&mut stroke_buf, ctor);
-        stroke_tess.tessellate(
-            &path,
-            &StrokeOptions::tolerance(5.).with_line_width(25.),
-            &mut builder,
-        ).unwrap();
+        stroke_tess
+            .tessellate(
+                &path,
+                &StrokeOptions::tolerance(5.).with_line_width(25.),
+                &mut builder,
+            )
+            .unwrap();
 
         x_position += position.x_advance as f32;
     }

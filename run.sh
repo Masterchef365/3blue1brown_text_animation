@@ -1,1 +1,1 @@
-cargo run -- ./cmunrm.ttf "3Blue1Brown"
+cargo run -- ./cmunrm.ttf 0.08 "Math is really hard."
