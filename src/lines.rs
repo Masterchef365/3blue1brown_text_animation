@@ -37,7 +37,7 @@ impl Scene for Lines {
         let triangle_index_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Triangle index Buffer"),
             contents: bytemuck::cast_slice(&args.triangle_indices),
-            usage: wgpu::BufferUsage::VERTEX,
+            usage: wgpu::BufferUsage::INDEX,
         });
 
         // Vertex descriptor

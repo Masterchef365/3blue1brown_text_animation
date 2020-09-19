@@ -2,10 +2,10 @@ use anyhow::{Context, Result};
 use harfbuzz_rs::{self as hb, UnicodeBuffer};
 use owned_ttf_parser::{self as ttf, GlyphId, OutlineBuilder};
 mod lines;
-use lines::{Lines as LinesRender, Vertex};
+use lines::{Lines as LinesRender, Vertex, Args};
 use lyon::path::{Path, Builder as PathBuilder};
 use lyon::math::{point, Point};
-use lyon::lyon_tessellation::{BasicVertexConstructor, VertexBuffers};
+use lyon::lyon_tessellation::{BasicVertexConstructor, VertexBuffers, BuffersBuilder, basic_shapes, FillOptions};
 
 struct PathTranslator {
     path: PathBuilder,
@@ -72,19 +72,36 @@ fn main() -> Result<()> {
     let positions = shape.get_glyph_positions();
     let infos = shape.get_glyph_infos();
 
-    //let mut vertex_buffers: VertexBuffers<Vertex, u16> = VertexBuffers::new();
+    let mut vertex_buffers: VertexBuffers<Vertex, u16> = VertexBuffers::new();
 
-    //let downscale = 5000.0;
-    //let mut vertices = Vec::new();
-    //let mut x_position = -0.8;
+    basic_shapes::fill_circle(
+        point(0.0, 0.0),
+        0.5,
+        &FillOptions::tolerance(0.001),
+        &mut BuffersBuilder::new(
+            &mut vertex_buffers,
+            WithColor([0.0, 1.0, 0.0])
+        ),
+    ).unwrap();
+
+    /*
+    let downscale = 5000.0;
+    let mut vertices = Vec::new();
+    let mut x_position = -0.8;
     for (_position, info) in positions.iter().zip(infos) {
         let mut outliner = PathTranslator::new();
         let _rect = ttf_face.outline_glyph(GlyphId(info.codepoint as u16), &mut outliner);
         dbg!(outliner.finish());
-        //x_position += position.x_advance as f32 / downscale;
+        x_position += position.x_advance as f32 / downscale;
     }
+    */
 
-    //wgpu_launchpad::launch::<LinesRender>(vertices);
+    let args = Args {
+        triangle_vertices: vertex_buffers.vertices,
+        triangle_indices: vertex_buffers.indices,
+    };
+
+    wgpu_launchpad::launch::<LinesRender>(args);
 
     Ok(())
 }
