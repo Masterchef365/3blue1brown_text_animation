@@ -4,7 +4,9 @@ use owned_ttf_parser::{self as ttf, GlyphId, OutlineBuilder};
 mod render;
 use render::{Args, Renderer, Vertex};
 use lyon::lyon_tessellation::{
-    BuffersBuilder, FillOptions, VertexBuffers, FillVertexConstructor, FillTessellator, FillAttributes,
+    BuffersBuilder, VertexBuffers, 
+    FillOptions, FillVertexConstructor, FillTessellator, FillAttributes,
+    StrokeOptions, StrokeVertexConstructor, StrokeTessellator, StrokeAttributes,
 };
 use lyon::math::{point, Point};
 use lyon::path::{Builder as PathBuilder, Path};
@@ -48,18 +50,17 @@ impl OutlineBuilder for PathTranslator {
     }
 }
 
-struct VertexCtor {
-    color: [f32; 3],
+struct FillVertexCtor {
     offset: Point,
     scaling: f32,
 }
 
-impl FillVertexConstructor<Vertex> for VertexCtor {
+impl FillVertexConstructor<Vertex> for FillVertexCtor {
     fn new_vertex(&mut self, position: Point, _: FillAttributes) -> Vertex {
         let Point { x, y, .. } = position + self.offset.to_vector();
         Vertex {
             pos: [x * self.scaling, y * self.scaling],
-            color: self.color,
+            value: 0.0,
         }
     }
 }
@@ -80,22 +81,21 @@ fn main() -> Result<()> {
     let positions = shape.get_glyph_positions();
     let infos = shape.get_glyph_infos();
 
-    let mut vertex_buffers: VertexBuffers<Vertex, u16> = VertexBuffers::new();
-    let mut tessellator = FillTessellator::new();
+    let mut fill_buf: VertexBuffers<Vertex, u16> = VertexBuffers::new();
+    let mut fill_tess = FillTessellator::new();
 
     let mut x_position = 0.0;
     for (position, info) in positions.iter().zip(infos) {
-        let ctor = VertexCtor {
-            color: [1.0; 3],
+        let ctor = FillVertexCtor {
             offset: point(x_position, 0.0),
             scaling: 0.1,
         };
-        let mut builder = BuffersBuilder::new(&mut vertex_buffers, ctor);
+        let mut builder = BuffersBuilder::new(&mut fill_buf, ctor);
         let mut outliner = PathTranslator::new();
         let _rect = ttf_face.outline_glyph(GlyphId(info.codepoint as u16), &mut outliner);
         let path = outliner.finish();
 
-        tessellator.tessellate(
+        fill_tess.tessellate(
             &path,
             &FillOptions::tolerance(5.),
             &mut builder,
@@ -105,8 +105,8 @@ fn main() -> Result<()> {
     }
 
     let args = Args {
-        triangle_vertices: vertex_buffers.vertices,
-        triangle_indices: vertex_buffers.indices,
+        triangle_vertices: fill_buf.vertices,
+        triangle_indices: fill_buf.indices,
     };
 
     wgpu_launchpad::launch::<Renderer>(args);

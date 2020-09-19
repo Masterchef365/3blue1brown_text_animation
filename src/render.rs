@@ -2,11 +2,14 @@ use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use wgpu_launchpad::{wgpu, PhysicalSize, Scene};
 
+const FILL_VERTEX_PATH: &str = "src/shaders/fill.vert.spv";
+const FILL_FRAGMENT_PATH: &str = "src/shaders/fill.frag.spv";
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Vertex {
     pub pos: [f32; 2],
-    pub color: [f32; 3],
+    pub value: f32,
 }
 unsafe impl Zeroable for Vertex {}
 unsafe impl Pod for Vertex {}
@@ -115,10 +118,10 @@ impl Scene for Renderer {
 
         // Shader modules
         let vs_module = device.create_shader_module(wgpu::util::make_spirv(
-            &std::fs::read("src/shaders/shader.vert.spv").unwrap(),
+            &std::fs::read(FILL_VERTEX_PATH).unwrap(),
         ));
         let fs_module = device.create_shader_module(wgpu::util::make_spirv(
-            &std::fs::read("src/shaders/shader.frag.spv").unwrap(),
+            &std::fs::read(FILL_FRAGMENT_PATH).unwrap(),
         ));
 
         // Pipeline
