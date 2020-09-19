@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use harfbuzz_rs::{self as hb, UnicodeBuffer};
 use owned_ttf_parser::{self as ttf, GlyphId, OutlineBuilder};
-mod lines;
-use lines::{Args, Lines as LinesRender, Vertex};
+mod render;
+use render::{Args, Renderer, Vertex};
 use lyon::lyon_tessellation::{
-    BasicVertexConstructor, BuffersBuilder, FillOptions, VertexBuffers, FillVertexConstructor, FillTessellator, FillAttributes,
+    BuffersBuilder, FillOptions, VertexBuffers, FillVertexConstructor, FillTessellator, FillAttributes,
 };
 use lyon::math::{point, Point};
 use lyon::path::{Builder as PathBuilder, Path};
@@ -108,7 +108,7 @@ fn main() -> Result<()> {
         triangle_indices: vertex_buffers.indices,
     };
 
-    wgpu_launchpad::launch::<LinesRender>(args);
+    wgpu_launchpad::launch::<Renderer>(args);
 
     Ok(())
 }
