@@ -20,6 +20,7 @@ pub struct Renderer {
     fragment_bind_group: wgpu::BindGroup,
     camera_ubo: wgpu::Buffer,
     animation_ubo: wgpu::Buffer,
+    anim: f32,
 }
 
 pub struct Args {
@@ -104,7 +105,7 @@ impl Scene for Renderer {
                         shader_location: 0,
                     },
                     wgpu::VertexAttributeDescriptor {
-                        format: wgpu::VertexFormat::Float3,
+                        format: wgpu::VertexFormat::Float,
                         offset: 2 * std::mem::size_of::<f32>() as u64,
                         shader_location: 1,
                     },
@@ -113,10 +114,12 @@ impl Scene for Renderer {
         };
 
         // Shader modules
-        let vs_module =
-            device.create_shader_module(wgpu::include_spirv!("shaders/shader.vert.spv"));
-        let fs_module =
-            device.create_shader_module(wgpu::include_spirv!("shaders/shader.frag.spv"));
+        let vs_module = device.create_shader_module(wgpu::util::make_spirv(
+            &std::fs::read("src/shaders/shader.vert.spv").unwrap(),
+        ));
+        let fs_module = device.create_shader_module(wgpu::util::make_spirv(
+            &std::fs::read("src/shaders/shader.frag.spv").unwrap(),
+        ));
 
         // Pipeline
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -183,6 +186,7 @@ impl Scene for Renderer {
             n_triangle_indices: args.triangle_indices.len() as _,
             camera_ubo,
             animation_ubo,
+            anim: 0.0,
         }
     }
 
@@ -215,7 +219,9 @@ impl Scene for Renderer {
             0,
             bytemuck::cast_slice(&ortho_camera(size)),
         );
+        queue.write_buffer(&self.animation_ubo, 0, bytemuck::cast_slice(&[self.anim]));
         std::thread::sleep(std::time::Duration::from_micros(16_667));
+        self.anim += 1.0;
     }
 }
 
