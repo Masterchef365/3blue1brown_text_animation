@@ -97,7 +97,7 @@ fn main() -> Result<()> {
 
         tessellator.tessellate(
             &path,
-            &FillOptions::tolerance(0.005),
+            &FillOptions::tolerance(5.),
             &mut builder,
         ).unwrap();
 
