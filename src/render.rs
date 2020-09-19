@@ -4,6 +4,8 @@ use wgpu_launchpad::{wgpu, PhysicalSize, Scene};
 
 const FILL_VERTEX_PATH: &str = "src/shaders/fill.vert.spv";
 const FILL_FRAGMENT_PATH: &str = "src/shaders/fill.frag.spv";
+const STROKE_VERTEX_PATH: &str = "src/shaders/stroke.vert.spv";
+const STROKE_FRAGMENT_PATH: &str = "src/shaders/stroke.frag.spv";
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -15,20 +17,30 @@ unsafe impl Zeroable for Vertex {}
 unsafe impl Pod for Vertex {}
 
 pub struct Renderer {
-    triangle_pipeline: wgpu::RenderPipeline,
-    triangle_vertex_buf: wgpu::Buffer,
-    triangle_index_buf: wgpu::Buffer,
-    n_triangle_indices: u32,
+    fill_pipeline: wgpu::RenderPipeline,
+    fill_vertex_buf: wgpu::Buffer,
+    fill_index_buf: wgpu::Buffer,
+    n_fill_indices: u32,
+
+    stroke_pipeline: wgpu::RenderPipeline,
+    stroke_vertex_buf: wgpu::Buffer,
+    stroke_index_buf: wgpu::Buffer,
+    n_stroke_indices: u32,
+
     vertex_bind_group: wgpu::BindGroup,
     fragment_bind_group: wgpu::BindGroup,
+
     camera_ubo: wgpu::Buffer,
     animation_ubo: wgpu::Buffer,
+
     anim: f32,
 }
 
 pub struct Args {
-    pub triangle_vertices: Vec<Vertex>,
-    pub triangle_indices: Vec<u16>,
+    pub fill_vertices: Vec<Vertex>,
+    pub fill_indices: Vec<u16>,
+    pub stroke_vertices: Vec<Vertex>,
+    pub stroke_indices: Vec<u16>,
 }
 
 impl Scene for Renderer {
@@ -36,15 +48,27 @@ impl Scene for Renderer {
 
     fn new(device: &wgpu::Device, args: Self::Args) -> Renderer {
         // Create buffers
-        let triangle_vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Triangle vertex Buffer"),
-            contents: bytemuck::cast_slice(&args.triangle_vertices),
+        let fill_vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Fill vertex Buffer"),
+            contents: bytemuck::cast_slice(&args.fill_vertices),
             usage: wgpu::BufferUsage::VERTEX,
         });
 
-        let triangle_index_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Triangle index Buffer"),
-            contents: bytemuck::cast_slice(&args.triangle_indices),
+        let fill_index_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Fill index Buffer"),
+            contents: bytemuck::cast_slice(&args.fill_indices),
+            usage: wgpu::BufferUsage::INDEX,
+        });
+
+        let stroke_vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Stroke vertex Buffer"),
+            contents: bytemuck::cast_slice(&args.stroke_vertices),
+            usage: wgpu::BufferUsage::VERTEX,
+        });
+
+        let stroke_index_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Stroke index Buffer"),
+            contents: bytemuck::cast_slice(&args.stroke_indices),
             usage: wgpu::BufferUsage::INDEX,
         });
 
@@ -84,7 +108,6 @@ impl Scene for Renderer {
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: None,
                 entries: &[wgpu::BindGroupLayoutEntry {
-                    // This might need its own bind group entry...
                     binding: 0,
                     visibility: wgpu::ShaderStage::FRAGMENT,
                     ty: wgpu::BindingType::UniformBuffer {
@@ -116,14 +139,6 @@ impl Scene for Renderer {
             }],
         };
 
-        // Shader modules
-        let vs_module = device.create_shader_module(wgpu::util::make_spirv(
-            &std::fs::read(FILL_VERTEX_PATH).unwrap(),
-        ));
-        let fs_module = device.create_shader_module(wgpu::util::make_spirv(
-            &std::fs::read(FILL_FRAGMENT_PATH).unwrap(),
-        ));
-
         // Pipeline
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
@@ -150,43 +165,59 @@ impl Scene for Renderer {
             label: None,
         });
 
-        let triangle_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&pipeline_layout),
-            vertex_stage: wgpu::ProgrammableStageDescriptor {
-                module: &vs_module,
-                entry_point: "main",
-            },
-            fragment_stage: Some(wgpu::ProgrammableStageDescriptor {
-                module: &fs_module,
-                entry_point: "main",
-            }),
-            rasterization_state: Some(wgpu::RasterizationStateDescriptor {
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: wgpu::CullMode::None,
-                ..Default::default()
-            }),
-            primitive_topology: wgpu::PrimitiveTopology::TriangleList,
-            color_states: &[wgpu::ColorStateDescriptor {
-                format: wgpu::TextureFormat::Bgra8UnormSrgb,
-                color_blend: wgpu::BlendDescriptor::REPLACE,
-                alpha_blend: wgpu::BlendDescriptor::REPLACE,
-                write_mask: wgpu::ColorWrite::ALL,
-            }],
-            depth_stencil_state: None,
-            vertex_state: vertex_state.clone(),
-            sample_count: 1,
-            sample_mask: !0,
-            alpha_to_coverage_enabled: false,
-        });
+        let make_pipeline = |vert_src_path, frag_src_path| {
+            let vs_module = device.create_shader_module(wgpu::util::make_spirv(
+                    &std::fs::read(vert_src_path).unwrap(),
+            ));
+            let fs_module = device.create_shader_module(wgpu::util::make_spirv(
+                    &std::fs::read(frag_src_path).unwrap(),
+            ));
+
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: None,
+                layout: Some(&pipeline_layout),
+                vertex_stage: wgpu::ProgrammableStageDescriptor {
+                    module: &vs_module,
+                    entry_point: "main",
+                },
+                fragment_stage: Some(wgpu::ProgrammableStageDescriptor {
+                    module: &fs_module,
+                    entry_point: "main",
+                }),
+                rasterization_state: Some(wgpu::RasterizationStateDescriptor {
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: wgpu::CullMode::None,
+                    ..Default::default()
+                }),
+                primitive_topology: wgpu::PrimitiveTopology::TriangleList,
+                color_states: &[wgpu::ColorStateDescriptor {
+                    format: wgpu::TextureFormat::Bgra8UnormSrgb,
+                    color_blend: wgpu::BlendDescriptor::REPLACE,
+                    alpha_blend: wgpu::BlendDescriptor::REPLACE,
+                    write_mask: wgpu::ColorWrite::ALL,
+                }],
+                depth_stencil_state: None,
+                vertex_state: vertex_state.clone(),
+                sample_count: 1,
+                sample_mask: !0,
+                alpha_to_coverage_enabled: false,
+            })
+        };
+
+        let fill_pipeline = make_pipeline(FILL_VERTEX_PATH, FILL_FRAGMENT_PATH);
+        let stroke_pipeline = make_pipeline(STROKE_VERTEX_PATH, STROKE_FRAGMENT_PATH);
 
         Self {
-            triangle_pipeline,
-            triangle_vertex_buf,
-            triangle_index_buf,
+            fill_pipeline,
+            fill_vertex_buf,
+            fill_index_buf,
+            n_fill_indices: args.fill_indices.len() as _,
+            stroke_pipeline,
+            stroke_vertex_buf,
+            stroke_index_buf,
+            n_stroke_indices: args.stroke_indices.len() as _,
             vertex_bind_group,
             fragment_bind_group,
-            n_triangle_indices: args.triangle_indices.len() as _,
             camera_ubo,
             animation_ubo,
             anim: 0.0,
@@ -211,12 +242,21 @@ impl Scene for Renderer {
             }],
             depth_stencil_attachment: None,
         });
-        rpass.set_pipeline(&self.triangle_pipeline);
-        rpass.set_vertex_buffer(0, self.triangle_vertex_buf.slice(..));
-        rpass.set_index_buffer(self.triangle_index_buf.slice(..));
         rpass.set_bind_group(0, &self.vertex_bind_group, &[]);
         rpass.set_bind_group(1, &self.fragment_bind_group, &[]);
-        rpass.draw_indexed(0..self.n_triangle_indices, 0, 0..1);
+
+        // Fill
+        rpass.set_pipeline(&self.fill_pipeline);
+        rpass.set_vertex_buffer(0, self.fill_vertex_buf.slice(..));
+        rpass.set_index_buffer(self.fill_index_buf.slice(..));
+        rpass.draw_indexed(0..self.n_fill_indices, 0, 0..1);
+
+        // Stroke
+        rpass.set_pipeline(&self.stroke_pipeline);
+        rpass.set_vertex_buffer(0, self.stroke_vertex_buf.slice(..));
+        rpass.set_index_buffer(self.stroke_index_buf.slice(..));
+        rpass.draw_indexed(0..self.n_stroke_indices, 0, 0..1);
+
         queue.write_buffer(
             &self.camera_ubo,
             0,

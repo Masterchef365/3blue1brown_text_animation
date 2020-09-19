@@ -105,8 +105,10 @@ fn main() -> Result<()> {
     }
 
     let args = Args {
-        triangle_vertices: fill_buf.vertices,
-        triangle_indices: fill_buf.indices,
+        fill_vertices: fill_buf.vertices,
+        fill_indices: fill_buf.indices,
+        stroke_vertices: vec![],
+        stroke_indices: vec![],
     };
 
     wgpu_launchpad::launch::<Renderer>(args);
