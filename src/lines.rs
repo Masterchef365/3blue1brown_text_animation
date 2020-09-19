@@ -12,19 +12,31 @@ unsafe impl Zeroable for Vertex {}
 unsafe impl Pod for Vertex {}
 
 pub struct Lines {
-    pipeline: wgpu::RenderPipeline,
-    vertex_buf: wgpu::Buffer,
-    n_verts: u32,
+    triangle_pipeline: wgpu::RenderPipeline,
+    triangle_vertex_buf: wgpu::Buffer,
+    triangle_index_buf: wgpu::Buffer,
+    n_triangle_indices: u32,
+}
+
+pub struct Args {
+    pub triangle_vertices: Vec<Vertex>,
+    pub triangle_indices: Vec<u16>,
 }
 
 impl Scene for Lines {
-    type Args = Vec<Vertex>;
+    type Args = Args;
 
-    fn new(device: &wgpu::Device, vertex_data: Self::Args) -> Lines {
+    fn new(device: &wgpu::Device, args: Self::Args) -> Lines {
         // Create buffers
-        let vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&vertex_data),
+        let triangle_vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Triangle vertex Buffer"),
+            contents: bytemuck::cast_slice(&args.triangle_vertices),
+            usage: wgpu::BufferUsage::VERTEX,
+        });
+
+        let triangle_index_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Triangle index Buffer"),
+            contents: bytemuck::cast_slice(&args.triangle_indices),
             usage: wgpu::BufferUsage::VERTEX,
         });
 
@@ -60,7 +72,7 @@ impl Scene for Lines {
             bind_group_layouts: &[],
         });
 
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let triangle_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
             vertex_stage: wgpu::ProgrammableStageDescriptor {
@@ -76,7 +88,7 @@ impl Scene for Lines {
                 cull_mode: wgpu::CullMode::None,
                 ..Default::default()
             }),
-            primitive_topology: wgpu::PrimitiveTopology::LineList,
+            primitive_topology: wgpu::PrimitiveTopology::TriangleList,
             color_states: &[wgpu::ColorStateDescriptor {
                 format: wgpu::TextureFormat::Bgra8UnormSrgb,
                 color_blend: wgpu::BlendDescriptor::REPLACE,
@@ -91,9 +103,10 @@ impl Scene for Lines {
         });
 
         Lines { 
-            pipeline,
-            vertex_buf,
-            n_verts: vertex_data.len() as _,
+            triangle_pipeline,
+            triangle_vertex_buf,
+            triangle_index_buf,
+            n_triangle_indices: args.triangle_indices.len() as _,
         }
     }
 
@@ -113,8 +126,9 @@ impl Scene for Lines {
             }],
             depth_stencil_attachment: None,
         });
-        rpass.set_pipeline(&self.pipeline);
-        rpass.set_vertex_buffer(0, self.vertex_buf.slice(..));
-        rpass.draw(0..self.n_verts, 0..1);
+        rpass.set_pipeline(&self.triangle_pipeline);
+        rpass.set_vertex_buffer(0, self.triangle_vertex_buf.slice(..));
+        rpass.set_index_buffer(self.triangle_index_buf.slice(..));
+        rpass.draw_indexed(0..self.n_triangle_indices, 0, 0..1);
     }
 }

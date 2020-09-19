@@ -10,3 +10,4 @@ harfbuzz_rs = "1.2.0"
 anyhow = "1"
 wgpu_launchpad = { path = "../wgpu_launchpad" }
 bytemuck = "1.4"
+lyon = "0.16"
