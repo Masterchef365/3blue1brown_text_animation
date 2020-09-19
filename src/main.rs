@@ -83,7 +83,7 @@ fn main() -> Result<()> {
     let mut vertex_buffers: VertexBuffers<Vertex, u16> = VertexBuffers::new();
     let mut tessellator = FillTessellator::new();
 
-    let mut x_position = -4800.0;
+    let mut x_position = 0.0;
     for (position, info) in positions.iter().zip(infos) {
         let ctor = VertexCtor {
             color: [1.0; 3],
