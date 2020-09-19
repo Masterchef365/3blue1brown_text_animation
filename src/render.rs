@@ -1,6 +1,6 @@
-use wgpu_launchpad::{Scene, wgpu, PhysicalSize};
-use wgpu::util::DeviceExt;
 use bytemuck::{Pod, Zeroable};
+use wgpu::util::DeviceExt;
+use wgpu_launchpad::{wgpu, PhysicalSize, Scene};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -60,25 +60,27 @@ impl Scene for Renderer {
         });
 
         // Bind group layout (basically a descriptorset layout)
-        let vertex_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: None,
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
+        let vertex_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStage::VERTEX,
                     ty: wgpu::BindingType::UniformBuffer {
                         dynamic: false,
-                        min_binding_size: wgpu::BufferSize::new(std::mem::size_of::<[f32; 16]>() as u64),
+                        min_binding_size: wgpu::BufferSize::new(
+                            std::mem::size_of::<[f32; 16]>() as u64
+                        ),
                     },
                     count: None,
-                },
-            ],
-        });
+                }],
+            });
 
-        let index_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: None,
-            entries: &[
-                wgpu::BindGroupLayoutEntry { // This might need its own bind group entry...
+        let index_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    // This might need its own bind group entry...
                     binding: 0,
                     visibility: wgpu::ShaderStage::FRAGMENT,
                     ty: wgpu::BindingType::UniformBuffer {
@@ -86,9 +88,8 @@ impl Scene for Renderer {
                         min_binding_size: wgpu::BufferSize::new(std::mem::size_of::<f32>() as u64),
                     },
                     count: None,
-                }
-            ],
-        });
+                }],
+            });
 
         // Vertex descriptor
         let vertex_state = wgpu::VertexStateDescriptor {
@@ -112,8 +113,10 @@ impl Scene for Renderer {
         };
 
         // Shader modules
-        let vs_module = device.create_shader_module(wgpu::include_spirv!("shaders/shader.vert.spv"));
-        let fs_module = device.create_shader_module(wgpu::include_spirv!("shaders/shader.frag.spv"));
+        let vs_module =
+            device.create_shader_module(wgpu::include_spirv!("shaders/shader.vert.spv"));
+        let fs_module =
+            device.create_shader_module(wgpu::include_spirv!("shaders/shader.frag.spv"));
 
         // Pipeline
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -125,26 +128,21 @@ impl Scene for Renderer {
         // Create bind group for the uniform
         let vertex_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &vertex_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(camera_ubo.slice(..)),
-                }
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::Buffer(camera_ubo.slice(..)),
+            }],
             label: None,
         });
 
         let fragment_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &index_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(animation_ubo.slice(..)),
-                }
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::Buffer(animation_ubo.slice(..)),
+            }],
             label: None,
         });
-
 
         let triangle_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
@@ -176,7 +174,7 @@ impl Scene for Renderer {
             alpha_to_coverage_enabled: false,
         });
 
-        Self { 
+        Self {
             triangle_pipeline,
             triangle_vertex_buf,
             triangle_index_buf,
@@ -189,7 +187,7 @@ impl Scene for Renderer {
     }
 
     fn draw(
-        &mut self, 
+        &mut self,
         encoder: &mut wgpu::CommandEncoder,
         target: &wgpu::TextureView,
         size: PhysicalSize<u32>,
@@ -212,17 +210,29 @@ impl Scene for Renderer {
         rpass.set_bind_group(0, &self.vertex_bind_group, &[]);
         rpass.set_bind_group(1, &self.fragment_bind_group, &[]);
         rpass.draw_indexed(0..self.n_triangle_indices, 0, 0..1);
-        queue.write_buffer(&self.camera_ubo, 0, bytemuck::cast_slice(&ortho_camera(size)));
+        queue.write_buffer(
+            &self.camera_ubo,
+            0,
+            bytemuck::cast_slice(&ortho_camera(size)),
+        );
         std::thread::sleep(std::time::Duration::from_micros(16_667));
     }
 }
 
 // TODO: Make this DPI-aware...
-fn ortho_camera(_size: PhysicalSize<u32>) -> [f32; 16] {
+fn ortho_camera(size: PhysicalSize<u32>) -> [f32; 16] {
+    let w = 2.0 / size.width as f32;
+    let h = 2.0 / size.height as f32;
     [
-        1.0, 0.0, 0.0, 0.0, 
-        0.0, 1.0, 0.0, 0.0, 
-        0.0, 0.0, 1.0, 0.0, 
-        0.0, 0.0, 0.0, 1.0, 
+        w, 0.0, 0.0, 0.0, //
+        0.0, h, 0.0, 0.0, //
+        0.0, 0.0, 1.0, 0.0, //
+        -1.0, -1.0, 0.0, 1.0, //
     ]
+    /*
+    glLoadIdentity();
+    float min = std::min(input.tl().x, input.tl().y);
+    float max = std::max(input.br().x, input.br().y);
+    glOrtho(min, max, min, max, max_z, -max_z);
+    */
 }
