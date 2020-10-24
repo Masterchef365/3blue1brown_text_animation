@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
-use wgpu_launchpad::{wgpu, PhysicalSize, Scene};
+use wgpu_launchpad::{wgpu, PhysicalSize, Scene, event};
 
 const FILL_VERTEX_PATH: &str = "src/shaders/fill.vert.spv";
 const FILL_FRAGMENT_PATH: &str = "src/shaders/fill.frag.spv";
@@ -33,6 +33,7 @@ pub struct Renderer {
     camera_ubo: wgpu::Buffer,
     animation_ubo: wgpu::Buffer,
 
+    paused: bool,
     speed: f32,
     anim: f32,
 }
@@ -210,6 +211,7 @@ impl Scene for Renderer {
         let stroke_pipeline = make_pipeline(STROKE_VERTEX_PATH, STROKE_FRAGMENT_PATH);
 
         Self {
+            paused: true,
             fill_pipeline,
             fill_vertex_buf,
             fill_index_buf,
@@ -267,7 +269,24 @@ impl Scene for Renderer {
         );
         queue.write_buffer(&self.animation_ubo, 0, bytemuck::cast_slice(&[self.anim]));
         std::thread::sleep(std::time::Duration::from_micros(16_667));
-        self.anim += self.speed;
+        if !self.paused {
+            self.anim += self.speed;
+        }
+    }
+
+    fn event(&mut self, event: &event::WindowEvent) {
+        use event::VirtualKeyCode as Key;
+        if let event::WindowEvent::KeyboardInput { input, .. } = event {
+            if input.state != event::ElementState::Released { return }
+            let key = match input.virtual_keycode {
+                Some(k) => k,
+                None => return,
+            };
+            match key {
+                Key::Space => self.paused = !self.paused,
+                _ => (),
+            }
+        }
     }
 }
 
