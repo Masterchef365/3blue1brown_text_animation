@@ -284,6 +284,7 @@ impl Scene for Renderer {
             };
             match key {
                 Key::Space => self.paused = !self.paused,
+                Key::R => self.anim = 0.0,
                 _ => (),
             }
         }
