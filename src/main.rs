@@ -89,6 +89,12 @@ fn main() -> Result<()> {
         .context("Requires text")
         .and_then(|arg| Ok(arg.parse::<f32>()?))?;
     let text = args.next().context("Requires text")?;
+    let speed = args
+        .next()
+        .context("Requires speed")?
+        .parse()
+        .context("Speed must be a number")?;
+
     let font_index = 0;
 
     let ttf_data = std::fs::read(ttf_path).context("Failed to read TTF")?;
@@ -145,6 +151,7 @@ fn main() -> Result<()> {
         fill_indices: fill_buf.indices,
         stroke_vertices: stroke_buf.vertices,
         stroke_indices: stroke_buf.indices,
+        speed,
     };
 
     wgpu_launchpad::launch::<Renderer>(args);

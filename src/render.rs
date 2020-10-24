@@ -33,6 +33,7 @@ pub struct Renderer {
     camera_ubo: wgpu::Buffer,
     animation_ubo: wgpu::Buffer,
 
+    speed: f32,
     anim: f32,
 }
 
@@ -41,6 +42,7 @@ pub struct Args {
     pub fill_indices: Vec<u16>,
     pub stroke_vertices: Vec<Vertex>,
     pub stroke_indices: Vec<u16>,
+    pub speed: f32,
 }
 
 impl Scene for Renderer {
@@ -221,6 +223,7 @@ impl Scene for Renderer {
             camera_ubo,
             animation_ubo,
             anim: 0.0,
+            speed: args.speed,
         }
     }
 
@@ -264,7 +267,7 @@ impl Scene for Renderer {
         );
         queue.write_buffer(&self.animation_ubo, 0, bytemuck::cast_slice(&[self.anim]));
         std::thread::sleep(std::time::Duration::from_micros(16_667));
-        self.anim += 1.0;
+        self.anim += self.speed;
     }
 }
 
